@@ -80,14 +80,11 @@ pm2 start server.js --name live-present
 
 ## 📸 Preview
 
-
-```md
 ![Ih24n69](https://raw.githubusercontent.com/ih24n69/live-present/refs/heads/main/Beranda.png)
 ![Ih24n69](https://raw.githubusercontent.com/ih24n69/live-present/refs/heads/main/BuatRoom.png)
 ![Ih24n69](https://raw.githubusercontent.com/ih24n69/live-present/refs/heads/main/Join.png)
 ![Ih24n69](https://raw.githubusercontent.com/ih24n69/live-present/refs/heads/main/HomePresenter.png)
 ![Ih24n69](https://raw.githubusercontent.com/ih24n69/live-present/refs/heads/main/React.png)
-```
 
 ---
 
@@ -111,4 +108,4 @@ Apache-2.0 License
 
 ## 👨‍💻 Author
 
-Developed by YOUR_NAME
+Developed by Muhammad Ihsan
