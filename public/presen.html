@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Presenter - Live Presenter</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+  <link rel="icon" href="assets/icon.png">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #111;
+      color: white;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 280px;
+      background: #1b1b1b;
+      padding: 15px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+      transition: 0.3s;
+	  overflow: hidden;
+    }
+
+    .sidebar.hidden {
+      width: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+	.file-item {
+	  display: flex;
+	  justify-content: space-between;
+	  align-items: center;
+	  gap: 10px;
+	  padding: 8px;
+	  margin-top: 5px;
+	  background: #333;
+	  border-radius: 6px;
+	}
+
+	.file-name {
+	  flex: 1;
+	  color: white;
+
+	  /* 🔥 INI YANG PENTING */
+	  white-space: normal;
+	  word-break: break-word;
+	  overflow-wrap: anywhere;
+	}
+
+	.file-delete {
+	  flex-shrink: 0;
+	  color: red;
+	  cursor: pointer;
+	  padding: 0 5px;
+	}
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    button {
+      background: #2d6cdf;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1f5bd1;
+    }
+
+    .file-btn {
+      background: #333;
+      margin-top: 5px;
+      text-align: left;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      max-width: 95%;
+      max-height: 90%;
+      background: white;
+      border-radius: 10px;
+    }
+
+    /* TOP BAR */
+    .topbar {
+	  position: absolute;
+	  top: 10px;
+	  left: 10px;
+	  display: flex;
+	  gap: 10px;
+	  z-index: 1000; /* 🔥 sangat penting */
+	}
+
+    .topbar button {
+      width: auto;
+      background: #444;
+      padding: 8px 12px;
+    }
+	
+	/* HOVER */
+	.topbar button:hover {
+	  background: #666;
+	}
+
+	/* optional: saat ditekan */
+	.topbar button:active {
+	  background: #555;
+	}
+
+    /* CONTROLS */
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .controls button {
+      width: auto;
+      padding: 10px 20px;
+      background: #444;
+    }
+
+    .controls button:hover {
+      background: #666;
+    }
+
+    /* EMOJI */
+    .emoji {
+	  position: fixed;        /* lebih stabil dari absolute */
+	  bottom: -40px;          /* mulai dari bawah */
+	  font-size: 40px;
+	  animation: floatUp 2.5s ease-out forwards;
+	  pointer-events: none;   /* supaya tidak ganggu klik */
+	}
+
+	@keyframes floatUp {
+	  0% {
+		transform: translateY(0);
+		opacity: 1;
+	  }
+
+	  100% {
+		transform: translateY(-120vh); /* naik sampai atas layar */
+		opacity: 0;
+	  }
+	}
+	.swal2-actions button {
+	  width: auto !important;
+	  gap: 12px !important;
+	}
+
+	.btn-confirm{
+		background: #16a34a !important;
+		color: white !important;
+		padding: 10px 20px !important;
+		border-radius: 8px !important;
+		transition: 0.2s !important;
+		margin-right: 5px;
+	}
+
+	.btn-confirm:hover{
+		background: #22c55e !important;
+	}
+
+	.btn-cancel{
+		background: #dc2626 !important;
+		color: white !important;
+		padding: 10px 20px !important;
+		border-radius: 8px !important;
+		transition: 0.2s !important;
+		margin-left: 5px;
+	}
+
+	.btn-cancel:hover{
+		background: #ef4444 !important;
+	}
+	.fa-upload {
+	  color: #2d6cdf; /* hijau */
+	}
+
+	.fa-folder-open {
+	  color: #2d6cdf; /* biru */
+	}
+
+	.fa-bars {
+	  color: #2d6cdf; /* kuning */
+	}
+
+	.fa-expand {
+	  color: #2d6cdf; /* ungu */
+	}
+	
+	.fa-gear {
+	  color: #2d6cdf;
+	}
+	
+	.tool-bar {
+	  display: flex;
+	  gap: 10px;
+	  margin-top: 10px;
+	}
+
+	.tool-bar button {
+	  flex: 1;
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+
+	  gap: 8px;
+
+	  padding: 10px;
+	  border: none;
+	  border-radius: 8px;
+
+	  background: #2d6cdf;
+	  color: white;
+
+	  cursor: pointer;
+	  transition: 0.2s;
+	}
+
+	.tool-bar button:hover {
+	  background: #1f5bd1;
+	}
+	progress {
+	  width: 100%;
+	  height: 10px;
+	  border-radius: 10px;
+	}
+	progress::-webkit-progress-bar {
+	  background: #222;
+	  border-radius: 10px;
+	}
+	progress::-webkit-progress-value {
+	  background: #1e90ff;
+	  border-radius: 10px;
+	}
+	.setting-item{
+	  display:flex;
+	  justify-content:space-between;
+	  align-items:center;
+	  margin-top:10px;
+	  padding:10px;
+	  background:#2a2a2a;
+	  border-radius:12px;
+	}
+
+	.switch {
+	  position: relative;
+	  display: inline-block;
+	  width: 52px;
+	  height: 28px;
+	}
+
+	.switch input {
+	  opacity: 0;
+	  width: 0;
+	  height: 0;
+	}
+
+	.slider {
+	  position: absolute;
+	  inset: 0;
+	  background: #555;
+	  border-radius: 999px;
+	  transition: .25s;
+	}
+
+	.slider:before {
+	  content: "";
+	  position: absolute;
+	  height: 22px;
+	  width: 22px;
+	  left: 3px;
+	  top: 3px;
+	  background: white;
+	  border-radius: 50%;
+	  transition: .25s;
+	}
+
+	input:checked + .slider {
+	  background: #1e90ff;
+	}
+
+	input:checked + .slider:before {
+	  transform: translateX(24px);
+	}
+  </style>
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <h3><i class="fa-solid fa-upload"></i> Upload</h3>
+
+	<form id="uploadForm" enctype="multipart/form-data">
+
+	  <!-- hidden file input -->
+	  <input
+		type="file"
+		id="fileInput"
+		name="pdf"
+		hidden
+	  />
+
+	  <!-- tombol upload -->
+	  <button
+		type="button"
+		id="uploadBtn"
+		onclick="document.getElementById('fileInput').click()"
+	  >
+		<i></i>
+		Upload Presentasi
+	  </button>
+
+	  <!-- progress -->
+	  <div id="uploadBox" style="display:none; margin-top:10px;">
+		<progress
+		  id="uploadProgress"
+		  value="0"
+		  max="100"
+		  style="width:100%"
+		></progress>
+
+		<div
+		  id="uploadText"
+		  style="font-size:12px; margin-top:5px;"
+		>
+		  0%
+		</div>
+	  </div>
+
+	</form>
+
+  <h3><i class="fa-solid fa-folder-open"></i> Presentasi</h3>
+  <div id="list"></div>
+  <h3><i class="fa-solid fa-gear"></i> Alat</h3>
+  <div class="setting-item">
+	  <span>Reaction di Viewer</span>
+
+	  <label class="switch">
+		<input type="checkbox" id="toggleReaction" checked onchange="toggleReaction()">
+		<span class="slider"></span>
+	  </label>
+   </div>
+   <div class="setting-item">
+  <span>QR Reaksi di Viewer</span>
+
+	  <label class="switch">
+		<input
+		  type="checkbox"
+		  id="toggleQRViewer"
+		  onchange="toggleQRViewer()"
+		>
+		<span class="slider"></span>
+	  </label>
+	</div>
+	<h4>Bagikan Halaman Reaksi</h4>
+	<div class="tool-bar">
+		  <button onclick="toggleQR()">
+			<i class="fa-solid fa-qrcode"></i> QR
+		  </button>
+
+		  <button onclick="shareRoom()">
+			<i class="fa-solid fa-share-nodes"></i> Share
+		  </button>
+	</div>
+	<div id="qrBox" style="display:none; margin-top:10px;">
+		<canvas id="qr"></canvas>
+	</div>
+	<h4>Bagikan Halaman Viewer</h4>
+	<div class="tool-bar">
+		  <button onclick="toggleQRView()">
+			<i class="fa-solid fa-qrcode"></i> QR
+		  </button>
+
+		  <button onclick="shareRoomView()">
+			<i class="fa-solid fa-share-nodes"></i> Share
+		  </button>
+	</div>
+	<div id="qrBoxView" style="display:none; margin-top:10px;">
+		<canvas id="qrView"></canvas>
+	</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- TOP BUTTONS -->
+  <div class="topbar">
+    <button onclick="event.stopPropagation(); toggleSidebar()">
+	  <i class="fa-solid fa-bars"></i> Menu
+	</button>
+    <button onclick="event.stopPropagation(); toggleFullscreen()">
+	  <i class="fa-solid fa-expand"></i> Fullscreen
+	</button>
+  </div>
+
+  <canvas id="pdf"></canvas>
+
+  <div id="reactions"></div>
+</div>
+
+<script src="/presenter.js"></script>
+
+<script>
+  // ===== TOGGLE SIDEBAR =====
+  function toggleSidebar() {
+    document.getElementById("sidebar").classList.toggle("hidden");
+  }
+
+  // ===== FULLSCREEN =====
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Beranda - Live Presentation</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="icon" href="assets/icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      padding: 40px;
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      text-align: center;
+      width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+	
+	.preview-box {
+  width: 100%;
+  aspect-ratio: 16 / 9;   /* 🔥 bikin kotak proporsional */
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+	.preview-box img {
+	  width: 100%;
+	  height: 100%;
+	  object-fit: cover;  /* gambar tetap rapi */
+	}
+
+	.card h1 {
+	  margin: 0;
+	  font-size: 22px;
+	}
+
+	.card p {
+	  margin-top: 8px;
+	  font-size: 14px;
+	  opacity: 0.7;
+	}
+
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .create {
+      background: #2563eb;
+      color: white;
+    }
+
+    .create:hover {
+      background: #1d4ed8;
+    }
+
+    .join {
+      background: #16a34a;
+      color: white;
+    }
+
+    .join:hover {
+      background: #15803d;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  
+  <div class="preview-box">
+    <img src="/assets/hero.jpg" alt="Preview">
+  </div>
+
+  <h1>Live Presentation</h1>
+  <p>Platform Presentasi Kolaboratif Real-Time</p>
+
+  <button class="create" onclick="createFlow()">
+    Buat Presentasi
+  </button>
+
+  <button class="join" onclick="joinFlow()">
+    Gabung Presentasi
+  </button>
+</div>
+
+<script>
+function showToast(icon, title) {
+  Swal.fire({
+    toast: true,
+    position: "top-end",
+    icon,
+    title,
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true
+  });
+}
+
+async function createFlow() {
+
+  const { value: type } = await Swal.fire({
+    title: "Buat Ruang",
+    input: "radio",
+    inputOptions: {
+      auto: "ID Ruang Otomatis",
+      custom: "ID Ruang Kustom"
+    },
+    inputValidator: value => !value && "Pilih salah satu",
+    confirmButtonText: "Selanjutnya"
+  });
+
+  if (!type) return;
+
+  let roomId = "";
+
+  if (type === "auto") {
+
+    const res = await fetch("/create-room", {
+      method: "POST"
+    });
+
+    const data = await res.json();
+    roomId = data.roomId;
+
+  } else {
+
+    const { value } = await Swal.fire({
+      title: "Masukkan ID Ruang",
+      input: "text",
+      inputPlaceholder: "Contoh: kelas12",
+      showCancelButton: true
+    });
+
+    if (!value) return;
+
+    const res = await fetch("/create-room", {
+	  method: "POST",
+	  headers: { "Content-Type": "application/json" },
+	  body: JSON.stringify({ roomId: value })
+	});
+	if (!res.ok) {
+
+	  const err = await res.json();
+
+	  Swal.fire({
+		icon: "error",
+		title: "Gagal Membuat Room",
+		text: err.error
+	  });
+
+	  return;
+	}
+    const data = await res.json();
+    roomId = data.roomId;
+  }
+
+  window.location.href = "/presen/" + roomId;
+}
+
+async function joinFlow() {
+
+  // 1. input room id
+  const { value: id } = await Swal.fire({
+    title: "Gabung Presentasi",
+    input: "text",
+    inputPlaceholder: "Masukkan ID Ruang",
+    showCancelButton: true,
+    confirmButtonText: "Lanjut"
+  });
+
+  if (!id) return;
+
+  // 2. cek room
+  const res = await fetch("/check-room/" + id);
+  const data = await res.json();
+
+  if (!data.exists) {
+    showToast("error", "ID Ruang tidak ditemukan!");
+    return;
+  }
+
+  // 3. pilih mode
+  const { value: mode } = await Swal.fire({
+    title: "Pilih Mode",
+    text: "Mau join sebagai apa?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Join",
+    cancelButtonText: "Batal",
+    input: "radio",
+    inputOptions: {
+      viewer: "Viewer",
+      reaction: "Reaksi"
+    },
+    inputValidator: (value) => {
+      if (!value) return "Pilih salah satu mode!";
+    }
+  });
+
+  if (!mode) return;
+
+  // 4. redirect sesuai mode
+  if (mode === "viewer") {
+    window.location.href = "/view/" + id;
+  } else {
+    window.location.href = "/reaksi/" + id;
+  }
+}
+</script>
+
+</body>
+</html>

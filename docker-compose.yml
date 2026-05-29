@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  live-present:
+    build: .
+    container_name: live-present
+    ports:
+      - "9090:9090"
+    restart: always
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./:/app
+      - ./uploads:/app/uploads
+      - ./public:/app/public  

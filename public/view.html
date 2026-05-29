@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>View - Live Presentation</title>
+  <link rel="icon" href="assets/icon.png">
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+	  margin: 0;
+	  background: #000;
+	}
+
+	#viewer {
+	  width: 100vw;
+	  height: 100vh;
+	  display: flex;
+	  justify-content: center;
+	  align-items: center;
+	  overflow: auto; /* boleh scroll kalau memang perlu */
+	}
+
+	canvas {
+	  display: block;
+	  max-width: 100%;
+	  max-height: 100%;
+	}
+	 .pop {
+    position: fixed;
+    font-size: 30px;
+    animation: popUp 1s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes popUp {
+	  0% {
+		transform: translateY(0);
+		opacity: 1;
+	  }
+
+	  100% {
+		transform: translateY(-90vh); /* naik sampai atas layar */
+		opacity: 0;
+	  }
+	}
+	#qrReactionBox{
+	  position:fixed;
+	  top:20px;
+	  right:20px;
+
+	  background:rgba(15,15,15,0.75);
+	  border:1px solid rgba(255,255,255,0.1);
+
+	  padding:12px;
+	  border-radius:18px;
+
+	  display:none;
+
+	  z-index:9999;
+
+	  backdrop-filter: blur(12px);
+
+	  box-shadow:
+		0 10px 30px rgba(0,0,0,0.4);
+	}
+
+	#qrReaction{
+	  width:120px;
+	  height:120px;
+	  background:white;
+	  border-radius:8px;
+	}
+
+	.qr-text{
+	  color:white;
+	  font-size:12px;
+	  text-align:center;
+	  margin-top:6px;
+	}
+  </style>
+</head>
+<body>
+<div id="qrReactionBox">
+
+  <img
+    id="qrReaction"
+    src=""
+    alt="QR Reaction"
+  />
+
+  <div class="qr-text">
+    Scan untuk Reaksi Live
+  </div>
+
+</div>
+<div id="viewer"></div>
+<div style="position:fixed; bottom:20px; right:20px;">
+  <button onclick="zoomOut()">-</button>
+  <button onclick="zoomIn()">+</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+<script>
+const socket = io();
+
+const roomId = window.location.pathname.split("/").pop();
+socket.emit("join-room", roomId);
+
+let pdfDoc = null;
+let pageNum = 1;
+let scale = 1.5;
+
+async function loadPDF(url) {
+
+  const loadingTask = pdfjsLib.getDocument(url);
+  pdfDoc = await loadingTask.promise;
+
+  pageNum = 1;
+  renderPage();
+
+}
+
+socket.on("set-active", (item) => {
+
+  const viewer = document.getElementById("viewer");
+  viewer.innerHTML = "";
+
+  if (item.type === "link") {
+
+    viewer.innerHTML = `
+      <iframe src="${item.path}" allowfullscreen></iframe>
+    `;
+
+  } else {
+
+    loadPDF("/uploads/" + item.path);
+
+  }
+
+});
+ 
+socket.on("update-page", (page) => {
+
+  if (!pdfDoc) return;
+
+  pageNum = page;
+  renderPage();
+
+});
+	
+async function renderPage() {
+
+  if (!pdfDoc) return;
+
+  const page = await pdfDoc.getPage(pageNum);
+
+  const viewer = document.getElementById("viewer");
+
+  let canvas = viewer.querySelector("canvas");
+
+  if (!canvas) {
+    viewer.innerHTML = "";
+    canvas = document.createElement("canvas");
+    viewer.appendChild(canvas);
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  const viewport = page.getViewport({ scale: 1 });
+
+  // 🎯 Hitung skala otomatis
+  const containerWidth = viewer.clientWidth;
+  const containerHeight = viewer.clientHeight;
+
+  const scaleWidth = containerWidth / viewport.width;
+  const scaleHeight = containerHeight / viewport.height;
+
+  // Jika landscape → fit width
+  // Jika portrait → fit height
+  const scale = viewport.width > viewport.height
+    ? scaleWidth
+    : scaleHeight;
+
+  const scaledViewport = page.getViewport({ scale });
+
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  await page.render({
+    canvasContext: ctx,
+    viewport: scaledViewport
+  }).promise;
+
+}
+	
+	function zoomIn() {
+	  scale += 0.2;
+	  renderPage();
+	}
+
+	function zoomOut() {
+	  if (scale > 0.4) {
+		scale -= 0.2;
+		renderPage();
+	  }
+	}
+let reactionEnabled = true;
+
+socket.on("reaction-mode", (state) => {
+  reactionEnabled = state;
+});
+
+socket.on("show-reaction", (emoji) => {
+
+if (!reactionEnabled) return;
+
+  const el = document.createElement("div");
+  el.className = "pop";
+  el.innerText = emoji;
+
+  const side = Math.random() < 0.5 ? "left" : "right";
+
+  if (side === "left") {
+    el.style.left = Math.random() * 20 + "vw";
+  } else {
+    el.style.left = (80 + Math.random() * 20) + "vw";
+  }
+
+  el.style.bottom = Math.random() * 30 + "px";
+
+  document.body.appendChild(el);
+
+  setTimeout(() => el.remove(), 3000);
+
+});
+socket.on("qr-mode", (enabled) => {
+
+  const box =
+    document.getElementById("qrReactionBox");
+
+  if (enabled) {
+
+    box.style.display = "block";
+
+    const reactURL =
+      window.location.origin +
+      "/reaksi/" +
+      roomId;
+
+    document.getElementById("qrReaction").src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
+      encodeURIComponent(reactURL);
+
+  } else {
+
+    box.style.display = "none";
+
+  }
+
+});
+</script>
+
+</body>
+</html>

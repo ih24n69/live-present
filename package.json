@@ -1,0 +1,10 @@
+{
+  "name": "slideshow-reaction",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "multer": "^1.4.4"
+  }
+}
